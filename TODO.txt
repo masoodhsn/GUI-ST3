@@ -1,0 +1,22 @@
+Project Execution Steps (One-Glance View)
+
+1️⃣ Choose Web-based GUI architecture
+2️⃣ Build initial GUI (Streamlit)
+3️⃣ Implement live chart (random data)
+4️⃣ Design project & folder structure
+5️⃣ Run a Gym environment standalone
+6️⃣ Train a simple RL agent (Stable-Baselines3)
+7️⃣ Implement a custom Callback
+8️⃣ Extract and stream training logs
+9️⃣ Run training in a separate process
+🔟 Connect IPC (Queue / Pipe) to GUI
+1️⃣1️⃣ Display real-time reward charts
+1️⃣2️⃣ Save model at fixed intervals
+1️⃣3️⃣ Run the environment with the training model
+1️⃣4️⃣ Reload model during training
+1️⃣5️⃣ Stream environment frames to GUI
+1️⃣6️⃣ Implement Start / Stop / Pause controls
+1️⃣7️⃣ Support multiple environments
+1️⃣8️⃣ Support multiple algorithms
+1️⃣9️⃣ Test on different environments
+2️⃣0️⃣ Cleanup, documentation, and presentation
