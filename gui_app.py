@@ -1,4 +1,4 @@
-# To Run (in cmd) : streamlit run gui_app.py
+# To Run (in cmd) : streamlit run app.py
 # gui_app.py
 
 import streamlit as st
