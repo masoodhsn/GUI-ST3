@@ -27,7 +27,6 @@ model = st.session_state.model
 
 # placeholder ها
 status_text = st.empty()
-display = st.empty()
 reward_chart = st.line_chart([], width="stretch")  # جایگزین use_container_width
 
 # -------------------------------
@@ -44,17 +43,33 @@ total_timesteps = st.slider(
 # -------------------------------
 # 2. دکمه Train
 # -------------------------------
+display = st.empty()
 if st.button("Train Model"):
     status_text.text("Training model...")
-    rewards = []
+    rewards =[0]
+    env_t = gym.make("CliffWalking-v1", render_mode="rgb_array")
+    obs, _ = env_t.reset()
     for cum_reward, step in model.learn(total_timesteps=total_timesteps, report_every=100):
-        rewards.append(cum_reward)
-        reward_chart.line_chart(rewards)  # نمودار live
+        action, _ = model.predict(obs, deterministic=True)
+        obs, reward, terminated, truncated, info = env_t.step(action)
+        done = terminated or truncated
+        if done: obs, _ = env_t.reset()
+        # نمایش محیط گرافیکی
+        frame = env_t.render()
+        img = Image.fromarray(frame)
+        display.image(img)
+        time.sleep(0.2)
+
+        if step%1000==0:
+            rewards.append(cum_reward)
+            reward_chart.line_chart(rewards)  # نمودار live
+            #model.save("./test/test_"+str(step))
     status_text.text("Training finished!")
 
 # -------------------------------
 # 3. دکمه Run Episode
 # -------------------------------
+
 if st.button("Run Episode"):
     obs, _ = env.reset()
     done = False
