@@ -15,8 +15,11 @@ class SARSA:
         epsilon_decay=0.995,
         verbose=0,
     ):
-        assert isinstance(env.observation_space, gym.spaces.Discrete)
-        assert isinstance(env.action_space, gym.spaces.Discrete)
+        """
+        SARSA implementation compatible with:
+        - Gymnasium environments
+        - Stable-Baselines3 DummyVecEnv (n_envs=1)
+        """
 
         self.env = env
         self.lr = learning_rate
@@ -26,11 +29,39 @@ class SARSA:
         self.epsilon_decay = epsilon_decay
         self.verbose = verbose
 
-        self.n_states = env.observation_space.n
-        self.n_actions = env.action_space.n
+        obs_space = env.observation_space
+        act_space = env.action_space
 
-        # Q-table
+        assert isinstance(obs_space, gym.spaces.Discrete)
+        assert isinstance(act_space, gym.spaces.Discrete)
+
+        self.n_states = obs_space.n
+        self.n_actions = act_space.n
+
         self.q_table = np.zeros((self.n_states, self.n_actions))
+
+    # ----------------------------------------
+    # Handle reset
+    # ----------------------------------------
+    def _reset_env(self):
+        obs = self.env.reset()
+
+        if isinstance(obs, np.ndarray):
+            return obs[0]
+
+        return obs[0]
+
+    # ----------------------------------------
+    # Handle step
+    # ----------------------------------------
+    def _step_env(self, action):
+        if hasattr(self.env, "num_envs"):
+            obs, reward, done, info = self.env.step([action])
+            return obs[0], reward[0], done[0]
+        else:
+            obs, reward, terminated, truncated, _ = self.env.step(action)
+            done = terminated or truncated
+            return obs, reward, done
 
     # ----------------------------------------
     # ε-greedy policy
@@ -41,22 +72,20 @@ class SARSA:
         return np.argmax(self.q_table[state])
 
     # ----------------------------------------
-    # Training
+    # Training loop
     # ----------------------------------------
     def learn(self, total_timesteps, report_every=100):
         """
-        آموزش SARSA و yield برای رسم نمودار live
-        total_timesteps: تعداد گام‌ها
-        report_every: هر چند گام یک داده برای نمودار تولید شود
+        Train SARSA and yield cumulative reward periodically.
         """
-        state, _ = self.env.reset()
+
+        state = self._reset_env()
         action = self._select_action(state)
         cumulative_reward = 0
 
         for t in range(1, total_timesteps + 1):
-            next_state, reward, terminated, truncated, _ = self.env.step(action)
-            done = terminated or truncated
 
+            next_state, reward, done = self._step_env(action)
             next_action = self._select_action(next_state)
 
             # SARSA update (on-policy)
@@ -64,32 +93,35 @@ class SARSA:
             td_error = td_target - self.q_table[state][action]
             self.q_table[state][action] += self.lr * td_error
 
-            # آماده‌سازی state و action بعدی
             if done:
-                state, action = self.env.reset()[0], self._select_action(self.env.reset()[0])
+                state = self._reset_env()
+                action = self._select_action(state)
             else:
                 state, action = next_state, next_action
 
             cumulative_reward += reward
 
-            # decay epsilon
+            # Decay epsilon
             self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
 
-            # yield برای نمودار هر report_every گام
             if t % report_every == 0:
                 yield cumulative_reward, t
 
         return self
 
-
     # ----------------------------------------
-    # Prediction (مثل SB3)
+    # Prediction
     # ----------------------------------------
     def predict(self, obs, deterministic=True):
+
+        if isinstance(obs, np.ndarray) and obs.shape != ():
+            obs = obs[0]
+
         if deterministic:
             action = np.argmax(self.q_table[obs])
         else:
             action = self._select_action(obs)
+
         return action, None
 
     # ----------------------------------------

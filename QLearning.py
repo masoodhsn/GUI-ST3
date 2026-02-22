@@ -15,8 +15,11 @@ class QLearning:
         epsilon_decay=0.995,
         verbose=0,
     ):
-        assert isinstance(env.observation_space, gym.spaces.Discrete)
-        assert isinstance(env.action_space, gym.spaces.Discrete)
+        """
+        Q-Learning implementation compatible with:
+        - Gymnasium environments
+        - Stable-Baselines3 DummyVecEnv (n_envs=1)
+        """
 
         self.env = env
         self.lr = learning_rate
@@ -26,14 +29,47 @@ class QLearning:
         self.epsilon_decay = epsilon_decay
         self.verbose = verbose
 
-        self.n_states = env.observation_space.n
-        self.n_actions = env.action_space.n
+        # Support both Gym Env and VecEnv
+        obs_space = env.observation_space
+        act_space = env.action_space
 
-        # Q-table
+        assert isinstance(obs_space, gym.spaces.Discrete)
+        assert isinstance(act_space, gym.spaces.Discrete)
+
+        self.n_states = obs_space.n
+        self.n_actions = act_space.n
+
+        # Initialize Q-table
         self.q_table = np.zeros((self.n_states, self.n_actions))
 
     # ----------------------------------------
-    # ε-greedy policy
+    # Handle reset for both Gym and VecEnv
+    # ----------------------------------------
+    def _reset_env(self):
+        obs = self.env.reset()
+
+        # VecEnv returns only obs (as array)
+        if isinstance(obs, np.ndarray):
+            return obs[0]
+
+        # Gym returns (obs, info)
+        return obs[0]
+
+    # ----------------------------------------
+    # Handle step for both Gym and VecEnv
+    # ----------------------------------------
+    def _step_env(self, action):
+        # If VecEnv, action must be a list
+        if hasattr(self.env, "num_envs"):
+            obs, reward, done, info = self.env.step([action])
+            return obs[0], reward[0], done[0]
+        else:
+            obs, reward, terminated, truncated, _ = self.env.step(action)
+            done = terminated or truncated
+            return obs, reward, done
+
+    # ----------------------------------------
+    # ε-greedy action selection
     # ----------------------------------------
     def _select_action(self, state):
         if np.random.rand() < self.epsilon:
@@ -41,21 +77,20 @@ class QLearning:
         return np.argmax(self.q_table[state])
 
     # ----------------------------------------
-    # Training
+    # Training loop
     # ----------------------------------------
     def learn(self, total_timesteps, report_every=100):
-        '''
-        آموزش Q-Learning و yield برای رسم نمودار live
-        total_timesteps: تعداد گام‌ها
-        report_every: هر چند گام یک داده برای نمودار تولید شود
-        '''
-        state, _ = self.env.reset()
+        """
+        Train Q-Learning and yield cumulative reward periodically.
+        """
+
+        state = self._reset_env()
         cumulative_reward = 0
 
         for t in range(1, total_timesteps + 1):
+
             action = self._select_action(state)
-            next_state, reward, terminated, truncated, _ = self.env.step(action)
-            done = terminated or truncated
+            next_state, reward, done = self._step_env(action)
 
             # Q-Learning update (off-policy)
             best_next_action = np.argmax(self.q_table[next_state])
@@ -63,27 +98,31 @@ class QLearning:
             td_error = td_target - self.q_table[state][action]
             self.q_table[state][action] += self.lr * td_error
 
-            state = next_state if not done else self.env.reset()[0]
+            state = next_state if not done else self._reset_env()
             cumulative_reward += reward
 
-            # epsilon decay
+            # Decay epsilon
             self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
 
-            # yield برای نمودار هر report_every گام
             if t % report_every == 0:
                 yield cumulative_reward, t
 
         return self
 
-
     # ----------------------------------------
-    # Prediction (مثل SB3)
+    # Prediction (SB3-like API)
     # ----------------------------------------
     def predict(self, obs, deterministic=True):
+
+        # If observation is batched (VecEnv), extract first element
+        if isinstance(obs, np.ndarray) and obs.shape != ():
+            obs = obs[0]
+
         if deterministic:
             action = np.argmax(self.q_table[obs])
         else:
             action = self._select_action(obs)
+
         return action, None
 
     # ----------------------------------------
