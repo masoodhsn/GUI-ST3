@@ -11,6 +11,12 @@ class CustomEnv(gym.Env):
         self.observation_space = self.env.observation_space
         self.action_space = self.env.action_space
 
+        # metadata for algorithm selection
+        self.state_space_type = 'discrete' if isinstance(self.observation_space, gym.spaces.Discrete) else 'continuous'
+        self.action_space_type = 'discrete' if isinstance(self.action_space, gym.spaces.Discrete) else 'continuous'
+        self.episode_length = 100  
+        self.reward_type = 'sparse'  
+
     def reset(self):
         obs, info = self.env.reset()
         return obs, info

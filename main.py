@@ -5,9 +5,9 @@
 # save models
 # load models
 
-# Sandbox execution( Docker container,Python sandbox libraries, Process-level sandbox)
 # multi-threading
 # seperate ui and sb3(back- end)
+# create a madole to impliment learning algorithm
 
 # reset()
 # step(action)
@@ -24,15 +24,14 @@ import time
 import streamlit as st
 from PIL import Image
 
-from QLearning import QLearning
-from sarsa import SARSA
-
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv
 
+from learning_algorithm.base_algorithm import BaseRLAlgorithm
+
 
 # -------------------------------
-# Page configuration
+# Page config
 # -------------------------------
 st.set_page_config(
     page_title="RL Dashboard",
@@ -45,195 +44,284 @@ st.title("Reinforcement Learning Platform")
 
 
 # -------------------------------
-# Dynamic environment loader
+# Load environment dynamically
 # -------------------------------
 def load_custom_env(game_folder):
-    """
-    Dynamically load CustomEnv class from:
-    custom_games/<game_folder>/env.py
-    """
 
-    env_path = os.path.join("custom_games", game_folder, "env.py")
+    env_path = os.path.join(
+        "custom_games",
+        game_folder,
+        "env.py"
+    )
 
-    spec = importlib.util.spec_from_file_location("custom_env", env_path)
-    module = importlib.util.module_from_spec(spec)
+    spec = importlib.util.spec_from_file_location(
+        "custom_env",
+        env_path
+    )
+
+    module = importlib.util.module_from_spec(
+        spec
+    )
+
     spec.loader.exec_module(module)
 
-    env_class = getattr(module, "CustomEnv")
+    env_class = getattr(
+        module,
+        "CustomEnv"
+    )
+
     env = env_class()
 
-    # Ensure rgb_array rendering is supported
     if hasattr(env, "render_mode"):
         env.render_mode = "rgb_array"
 
     return env
 
 
-# -------------------------------
-# Environment factory
-# -------------------------------
-def make_env(selected_game):
-    """
-    Create monitored environment from selected custom game.
-    """
-    env = load_custom_env(selected_game)
+def make_env(game):
+
+    env = load_custom_env(game)
     env = Monitor(env)
     return env
 
 
 # -------------------------------
-# Sidebar controls
+# Load algorithms dynamically
+# -------------------------------
+def load_algorithms():
+
+    algorithms = {}
+
+    folder = "learning_algorithm"
+
+    for file in os.listdir(folder):
+
+        if (
+            file.endswith(".py")
+            and file not in ["__init__.py", "base_algorithm.py"]
+        ):
+
+            path = os.path.join(folder, file)
+
+            spec = importlib.util.spec_from_file_location(
+                file[:-3],
+                path
+            )
+
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+
+            for name in dir(module):
+
+                obj = getattr(module, name)
+
+                if (
+                    isinstance(obj, type)
+                    and hasattr(obj, "is_compatible")
+                    and issubclass(obj, BaseRLAlgorithm)
+                    and obj != BaseRLAlgorithm
+                ):
+                    algorithms[obj.algorithm_name] = obj
+
+    return algorithms
+
+
+# -------------------------------
+# Sidebar
 # -------------------------------
 with st.sidebar:
 
-    # List available games inside custom_games folder
+    # games
+    available_games = []
+
     if os.path.exists("custom_games"):
         available_games = [
-            folder for folder in os.listdir("custom_games")
-            if os.path.isdir(os.path.join("custom_games", folder))
+            f for f in os.listdir("custom_games")
+            if os.path.isdir(os.path.join("custom_games", f))
         ]
-    else:
-        available_games = []
 
-    selected_game = st.selectbox("Select Game", available_games)
+    selected_game = st.selectbox(
+        "Select Game",
+        available_games
+    )
 
+    # algorithms
+    algorithm_classes = load_algorithms()
+
+    selected_algo = None
+
+    if selected_game:
+
+        temp_env = load_custom_env(selected_game)
+
+        algo_labels = []
+
+        for name, cls in algorithm_classes.items():
+
+            ok = cls.is_compatible(temp_env)
+
+            label = name + (" 🟢 reco" if ok else " 🔴")
+
+            algo_labels.append((label, name))
+
+        selected_label = st.selectbox(
+            "Select Algorithm",
+            [x[0] for x in algo_labels]
+        )
+
+        for label, name in algo_labels:
+            if label == selected_label:
+                selected_algo = name
+                break
+
+    # buttons
     col1, col2 = st.columns(2)
 
     with col1:
-        train_button = st.button("Train Model")
+        train_button = st.button("Train")
+
     with col2:
-        run_button = st.button("Run Episode")
+        run_button = st.button("Run")
 
     total_timesteps = st.slider(
-        "Total Timesteps",
-        min_value=1000,
-        max_value=50000,
-        value=30000,
-        step=1000
+        "Timesteps",
+        1000,
+        50000,
+        20000,
+        1000
     )
 
-    with st.expander("Advanced Settings"):
-        lr = st.slider("Learning Rate", 0.01, 1.0, 0.5, 0.01)
-        gamma = st.slider("Gamma", 0.1, 0.99, 0.99, 0.01)
-        epsilon = st.slider("Epsilon", 0.1, 0.99, 1.0, 0.01)
-        epsilon_decay = st.slider("Epsilon Decay", 0.1, 0.995, 0.995, 0.005)
-        epsilon_min = st.slider("Minimum Epsilon", 0.01, 0.99, 0.05, 0.01)
+    with st.expander("Hyperparameters"):
+        AlgoClass = algorithm_classes[selected_algo]
+        params = AlgoClass.get_init_params()
+
+        for key, value in params.items():
+
+            params[key] = st.slider(
+                key,
+                0.0,
+                1.0,
+                float(value)
+            )
 
 
 # -------------------------------
-# Session state initialization
+# Session state
 # -------------------------------
 if selected_game:
 
-    if "env" not in st.session_state or st.session_state.get("current_game") != selected_game:
-        st.session_state.current_game = selected_game
-        st.session_state.env = make_env(selected_game)
-        st.session_state.vec_env = DummyVecEnv([lambda: make_env(selected_game)])
+    if (
+        "game" not in st.session_state
+        or st.session_state.game != selected_game
+    ):
 
-        st.session_state.model = QLearning(
-            "MlpPolicy",
-            st.session_state.env,
-            learning_rate=lr,
-            gamma=gamma,
-            epsilon=epsilon,
-            epsilon_min=epsilon_min,
-            epsilon_decay=epsilon_decay
-        )
+        st.session_state.game = selected_game
+
+        st.session_state.env = make_env(selected_game)
+
+        st.session_state.vec_env = DummyVecEnv([
+            lambda: make_env(selected_game)
+        ])
+
+        st.session_state.model = None
 
 
 env = st.session_state.get("env", None)
-vec_env = st.session_state.get("vec_env", None)
 model = st.session_state.get("model", None)
 
 
 # -------------------------------
-# UI Layout
+# UI
 # -------------------------------
-col_left, col_right = st.columns(2)
+col1, col2 = st.columns(2)
 
-with col_left:
+with col1:
     display = st.empty()
 
-with col_right:
-    reward_chart = st.line_chart([], width='stretch')
+with col2:
+    chart = st.line_chart([])
 
-status_text = st.empty()
+status = st.empty()
 
 
 # -------------------------------
-# Training Section
+# Train
 # -------------------------------
-if train_button and env is not None:
+if train_button and env and selected_algo:
 
-    status_text.text("Training model...")
+    AlgoClass = algorithm_classes[selected_algo]
 
-    st.session_state.model = QLearning(
-        "MlpPolicy",
-        env,
-        learning_rate=lr,
-        gamma=gamma,
-        epsilon=epsilon,
-        epsilon_min=epsilon_min,
-        epsilon_decay=epsilon_decay
+    params = AlgoClass.get_init_params()
+
+    st.session_state.model = AlgoClass.from_params(
+        env=env,
+        params=params
     )
 
     model = st.session_state.model
 
     render_env = make_env(selected_game)
+
     obs = render_env.reset()[0]
 
-    cumulative_rewards = []
+    rewards = []
 
-    for cum_reward, step in model.learn(
+    status.text("Training...")
+
+    for reward, step in model.learn(
         total_timesteps=total_timesteps,
         report_every=100
     ):
 
-        action, _ = model.predict(obs, deterministic=True)
-        obs, reward, terminated, truncated, _ = render_env.step(action)
+        action, _ = model.predict(obs)
 
-        done = terminated or truncated
-        if done:
+        obs, r, term, trunc, _ = render_env.step(action)
+
+        if term or trunc:
             obs = render_env.reset()[0]
 
         frame = render_env.render()
-        img = Image.fromarray(frame)
-        display.image(img)
+
+        display.image(Image.fromarray(frame))
 
         if step % 1000 == 0:
-            cumulative_rewards.append(cum_reward)
-            reward_chart.line_chart(cumulative_rewards)
+            rewards.append(reward)
+            chart.line_chart(rewards)
 
-        time.sleep(0.2)
+        time.sleep(0.1)
 
-    status_text.text("Training finished!")
+    status.success("Training finished")
 
 
 # -------------------------------
-# Run Episode Section
+# Run
 # -------------------------------
-if run_button and env is not None:
+if run_button and env and model:
 
     obs = env.reset()[0]
+
     done = False
+
     total_reward = 0
+
     steps = 0
 
     while not done:
 
-        action, _ = model.predict(obs, deterministic=True)
-        obs, reward, terminated, truncated, _ = env.step(action)
+        action, _ = model.predict(obs)
 
-        done = terminated or truncated
-        total_reward += reward
+        obs, r, term, trunc, _ = env.step(action)
+
+        done = term or trunc
+
+        total_reward += r
+
         steps += 1
 
-        frame = env.render()
-        img = Image.fromarray(frame)
-        display.image(img)
+        display.image(Image.fromarray(env.render()))
 
-        time.sleep(0.2)
+        time.sleep(0.1)
 
-    status_text.success(
-        f"Episode finished in {steps} steps | Total Reward: {total_reward}"
+    status.success(
+        f"Done | steps={steps} | reward={total_reward}"
     )
