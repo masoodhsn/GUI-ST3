@@ -17,12 +17,20 @@ class BaseRLAlgorithm(ABC):
         """
         return {}
     
+
+    default_policy = "MlpPolicy"
+
     @classmethod
     def from_params(cls, env, params):
         """
         Unified constructor for all algorithms
         """
-        return cls(env=env, **params)
+        return cls(
+            policy=cls.default_policy,
+            env=env,
+            **params
+        )
+
 
     def __init__(self, *args, **kwargs):
         pass

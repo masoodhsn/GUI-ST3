@@ -37,8 +37,12 @@ class CustomEnv(gym.Env):
         # cliff = mostly step penalties
         self.reward_type = "dense"
 
-    def reset(self):
-        obs, info = self.env.reset()
+    def reset(self, **kwargs):
+
+        obs, info = self.env.reset(
+            **kwargs
+        )
+
         return obs, info
 
     def step(self, action):

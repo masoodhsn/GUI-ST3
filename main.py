@@ -28,6 +28,7 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv
 
 from learning_algorithm.base_algorithm import BaseRLAlgorithm
+from callbacks.training_callback import StreamlitTrainingCallback
 
 
 # -------------------------------
@@ -260,35 +261,24 @@ if train_button and env and selected_algo:
 
     model = st.session_state.model
 
+    # environment for live rendering
     render_env = make_env(selected_game)
 
-    obs = render_env.reset()[0]
-
-    rewards = []
+    # callback
+    callback = StreamlitTrainingCallback(
+        render_env=render_env,
+        display_placeholder=display,
+        chart_placeholder=chart,
+        render_every=500,
+        reward_window=100
+    )
 
     status.text("Training...")
 
-    for reward, step in model.learn(
+    model.learn(
         total_timesteps=total_timesteps,
-        report_every=100
-    ):
-
-        action, _ = model.predict(obs)
-
-        obs, r, term, trunc, _ = render_env.step(action)
-
-        if term or trunc:
-            obs = render_env.reset()[0]
-
-        frame = render_env.render()
-
-        display.image(Image.fromarray(frame))
-
-        if step % 1000 == 0:
-            rewards.append(reward)
-            chart.line_chart(rewards)
-
-        time.sleep(0.1)
+        callback=callback
+    )
 
     status.success("Training finished")
 
@@ -309,6 +299,8 @@ if run_button and env and model:
     while not done:
 
         action, _ = model.predict(obs)
+
+        action = int(action)
 
         obs, r, term, trunc, _ = env.step(action)
 
