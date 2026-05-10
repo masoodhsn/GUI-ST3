@@ -5,4 +5,4 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 venv\Scripts\activate
 python -m pip install --upgrade pip
 pip install -r requirements.txt
-streamlit run main.py
+streamlit run UI.py
