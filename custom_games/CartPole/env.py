@@ -62,8 +62,7 @@ class CustomEnv(gym.Env):
         )
 
     def render(self):
-        frame = self.env.render()
-        return frame.copy()
+        return self.env.render()
 
     def close(self):
         self.env.close()
