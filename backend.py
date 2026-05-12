@@ -12,23 +12,15 @@ import importlib
 
 class Backend:
 
-    def __init__(self, algorithm, learning_rate, gamma):
+    def __init__(self, algorithm):
 
         self.env = CustomEnv()
 
         self.algorithm_class = self.set_algorithm(algorithm)
 
-        self.current_params = (                    ###### hyper-parameters
-            self.algorithm_class.get_init_params()
-        )
+        self.hyperparams = self.algorithm_class.get_hyperparameters()
 
-        self.model = self.algorithm_class(
-            "MlpPolicy",
-            self.env,
-            learning_rate= learning_rate,
-            gamma= gamma,
-            verbose=1
-        )      
+        self.model = self.build_model()
 
         print("Backend initialized")
 
@@ -58,6 +50,7 @@ class Backend:
         return algorithms
     
 
+
     def set_algorithm(
         self,
         algorithm_name
@@ -67,13 +60,20 @@ class Backend:
             f"learning_algorithm.{algorithm_name}"
         )
 
-        algorithm_class = getattr(
+        self.algorithm_class = getattr(
             module,
             f"Custom{algorithm_name.upper()}"
         )
 
-        return algorithm_class
+        return self.algorithm_class
 
+
+
+    def update_hyperparams(self, new_params):
+
+        for k, v in new_params.items():
+            if k in self.hyperparams:
+                self.hyperparams[k]["default"] = v
 
 
 
@@ -120,16 +120,8 @@ class Backend:
     def train(
         self,
         chart,
-        total_timesteps,
-        learning_rate,
-        gamma
+        total_timesteps
     ):
-
-        # update params
-        self.current_params.update({
-            "learning_rate": learning_rate,
-            "gamma": gamma
-        })
 
         # rebuild with new params
         self.rebuild_model()
@@ -154,22 +146,22 @@ class Backend:
         if uploaded_file is None:
             return
 
-        # self.model = self.algorithm_class.load(
-        #     uploaded_file,
-        #     env=self.env
-        # )
-
-        self.model = CustomDQN.load(
+        self.model = self.algorithm_class.load(
             uploaded_file,
             env=self.env
         )
+
+        # self.model = CustomDQN.load(
+        #     uploaded_file,
+        #     env=self.env
+        # )
 
 
     def rebuild_model(self):     
 
         old_model = self.model
 
-        self.reset_model()
+        self.build_model()
 
         self.model.policy.load_state_dict(
             old_model.policy.state_dict()
@@ -180,11 +172,18 @@ class Backend:
         )
     
 
-    def reset_model(self):
-        
+    def build_model(self):
+
+        params = {
+            k: v["default"]
+            for k, v in self.hyperparams.items()
+        }
+
         self.model = self.algorithm_class(
             "MlpPolicy",
             self.env,
-            **self.current_params,
+            **params,
             verbose=1
-        )   
+        ) 
+
+        return self.model

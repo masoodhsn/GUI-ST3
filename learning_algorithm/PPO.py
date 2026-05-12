@@ -14,13 +14,22 @@ class CustomPPO(
     algorithm_name = "PPO"
 
 
-    @classmethod
-    def get_init_params(cls):
 
+    @classmethod
+    def get_hyperparameters(cls):
         return {
-            "learning_rate": 0.0003,
-            "gamma": 0.99,
-            "n_steps": 2048
+            "learning_rate": {
+                "default": 0.0003,
+                "type": float
+            },
+            "gamma": {
+                "default": 0.99,
+                "type": float
+            },
+            "n_steps": {
+                "default": 2048,
+                "type": int
+            }
         }
 
 

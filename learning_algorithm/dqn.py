@@ -15,11 +15,16 @@ class CustomDQN(
 
 
     @classmethod
-    def get_init_params(cls):
-
+    def get_hyperparameters(cls):
         return {
-            "learning_rate": 0.0003,
-            "gamma": 0.99
+            "learning_rate": {
+                "default": 0.0003,
+                "type": float
+            },
+            "gamma": {
+                "default": 0.99,
+                "type": float
+            }
         }
 
 

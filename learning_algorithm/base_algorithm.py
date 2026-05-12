@@ -7,7 +7,7 @@ class BaseRLAlgorithm(ABC):
 
     @classmethod
     @abstractmethod
-    def get_init_params(cls):
+    def get_hyperparameters(cls):
         """
         Returns default hyperparameters.
 
@@ -18,6 +18,7 @@ class BaseRLAlgorithm(ABC):
         }
         """
         pass
+
 
 
     @classmethod
