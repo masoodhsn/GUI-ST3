@@ -6,33 +6,76 @@ from PIL import Image
 
 from callback import StreamlitTrainingCallback
 
+from pathlib import Path
+import importlib
+
 
 class Backend:
 
-    def __init__(self, learning_rate, gamma):
-
-        print("Backend initialized")
+    def __init__(self, algorithm, learning_rate, gamma):
 
         self.env = CustomEnv()
 
+        self.algorithm_class = self.set_algorithm(algorithm)
+
         self.current_params = (                    ###### hyper-parameters
-            CustomDQN.get_init_params()
+            self.algorithm_class.get_init_params()
         )
 
-        self.model = CustomDQN(
+        self.model = self.algorithm_class(
             "MlpPolicy",
             self.env,
             learning_rate= learning_rate,
             gamma= gamma,
             verbose=1
-        )
-        
+        )      
 
-    def is_compatible(self):
+        print("Backend initialized")
 
-        return self.model.is_compatible(
-            self.env
+
+
+    @staticmethod
+    def get_available_algorithms():
+
+        algo_path = Path(
+            "learning_algorithm"
         )
+
+        algorithms = []
+
+        for file in algo_path.glob("*.py"):
+
+            if file.stem in [
+                "__init__",
+                "base_algorithm"
+            ]:
+                continue
+
+            algorithms.append(
+                file.stem
+            )
+
+        return algorithms
+    
+
+    def set_algorithm(
+        self,
+        algorithm_name
+    ):
+
+        module = importlib.import_module(
+            f"learning_algorithm.{algorithm_name}"
+        )
+
+        algorithm_class = getattr(
+            module,
+            f"Custom{algorithm_name.upper()}"
+        )
+
+        return algorithm_class
+
+
+
 
 
     def run(self, display):
@@ -60,7 +103,7 @@ class Backend:
                 Image.fromarray(frame)
             )
 
-            time.sleep(0.04)  # 25 fps
+            time.sleep(0.05)  # 20 fps
 
             if terminated or truncated:
 
@@ -111,6 +154,11 @@ class Backend:
         if uploaded_file is None:
             return
 
+        # self.model = self.algorithm_class.load(
+        #     uploaded_file,
+        #     env=self.env
+        # )
+
         self.model = CustomDQN.load(
             uploaded_file,
             env=self.env
@@ -121,12 +169,7 @@ class Backend:
 
         old_model = self.model
 
-        self.model = CustomDQN(
-            "MlpPolicy",
-            self.env,
-            **self.current_params,
-            verbose=1
-        )
+        self.reset_model()
 
         self.model.policy.load_state_dict(
             old_model.policy.state_dict()
@@ -138,10 +181,10 @@ class Backend:
     
 
     def reset_model(self):
-
-        self.model = CustomDQN(
+        
+        self.model = self.algorithm_class(
             "MlpPolicy",
             self.env,
             **self.current_params,
             verbose=1
-        )
+        )   

@@ -24,13 +24,15 @@ display, chart = (
     learning_rate,
     gamma,
     uploaded_model,
-) = frontend.create_sidebar()
+    algorithm
+) = frontend.create_sidebar(Backend.get_available_algorithms())
 
 
 
 if "backend" not in st.session_state:
 
     st.session_state.backend = Backend(
+        algorithm,
         learning_rate,
         gamma
     )
@@ -76,4 +78,22 @@ if uploaded_model is not None:
 
         st.session_state.loaded_model_name = (
             current_file
+        )
+
+
+
+if algorithm is not None:
+
+    current_algorithm = algorithm
+
+    if (
+        "algorithm" not in st.session_state
+        or
+        st.session_state.algorithm != current_algorithm
+    ):
+
+        backend.set_algorithm(algorithm)
+
+        st.session_state.algorithm = (
+            current_algorithm
         )

@@ -32,7 +32,10 @@ class Frontend:
         return display, chart
 
 
-    def create_sidebar(self):
+    def create_sidebar(
+            self,
+            algorithms
+        ):
 
         with st.sidebar:
 
@@ -53,10 +56,12 @@ class Frontend:
                 "Reset Model"
             )
 
+
             uploaded_model = st.file_uploader(
                 "Load Model",
                 type=["zip"]
             )
+
 
             train_steps = st.slider(
                 "Train Steps",
@@ -65,6 +70,17 @@ class Frontend:
                 value=70_000,
                 step=1000
                 )
+
+
+            with st.expander(
+                "🎮 RL Setup"
+            ):
+
+                algorithm = st.selectbox(
+                    "🧠 Algorithms",
+                    algorithms
+                )
+
 
             with st.expander("⚙️ Hyperparameters"):
 
@@ -87,5 +103,9 @@ class Frontend:
             train_steps,
             learning_rate,
             gamma,
-            uploaded_model      
+            uploaded_model,
+            algorithm     
         )
+    
+
+    
