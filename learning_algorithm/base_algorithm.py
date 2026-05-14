@@ -22,14 +22,6 @@ class BaseRLAlgorithm(ABC):
                 "type": float
             }
         }
-
-
-        value
-        max
-        min
-        type
-        sidebar type
-        step
         """
         pass
 

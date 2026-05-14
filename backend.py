@@ -9,6 +9,13 @@ from pathlib import Path
 import importlib
 
 
+
+################ show progressing virtual game (callback,backend,main,frontend)
+################ show logs in ui and make them in custom algorithms  (backend,main,frontend)
+################ save model on env file (backend,callback)
+################ base_algorithm hyperparametrs value,max,min,type,,sidebar type,step (base_algorithm)
+
+
 class Backend:
 
     def __init__(self, algorithm):
@@ -73,6 +80,8 @@ class Backend:
         )
 
         self.hyperparams = self.algorithm_class.get_hyperparameters()
+
+        self.build_model()
 
         return self.algorithm_class
 

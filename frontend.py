@@ -1,9 +1,6 @@
 import streamlit as st
 
 
-################### show logs   
-
-
 class Frontend:
 
     def setup_page(self):
