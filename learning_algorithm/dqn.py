@@ -35,3 +35,56 @@ class CustomDQN(
             env.action_space,
             gym.spaces.Discrete
         )
+    
+
+    def export_training_state(self):
+
+        return {
+
+            # neural network weights
+            "policy_state":
+                self.policy.state_dict(),
+
+            # optimizer state
+            "optimizer_state":
+                self.policy.optimizer.state_dict(),
+
+            # replay memory
+            "replay_buffer":
+                self.replay_buffer,
+
+            # training progress
+            "num_timesteps":
+                self.num_timesteps,
+
+            # epsilon-greedy progress
+            "exploration_rate":
+                self.exploration_rate
+        }
+    
+
+
+    def import_training_state(
+        self,
+        state
+    ):
+
+        self.policy.load_state_dict(
+            state["policy_state"]
+        )
+
+        self.policy.optimizer.load_state_dict(
+            state["optimizer_state"]
+        )
+
+        self.replay_buffer = (
+            state["replay_buffer"]
+        )
+
+        self.num_timesteps = (
+            state["num_timesteps"]
+        )
+
+        self.exploration_rate = (
+            state["exploration_rate"]
+        )

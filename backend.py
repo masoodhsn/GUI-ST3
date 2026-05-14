@@ -1,5 +1,4 @@
 from custom_games.CartPole.env import CustomEnv
-from learning_algorithm.dqn import CustomDQN
 
 import time
 from PIL import Image
@@ -14,11 +13,19 @@ class Backend:
 
     def __init__(self, algorithm):
 
-        self.env = CustomEnv()
 
-        self.algorithm_class = self.set_algorithm(algorithm)
+        module = importlib.import_module(
+            f"learning_algorithm.{algorithm}"
+        )
+
+        self.algorithm_class = getattr(
+            module,
+            f"Custom{algorithm.upper()}"
+        )
 
         self.hyperparams = self.algorithm_class.get_hyperparameters()
+
+        self.env = CustomEnv()
 
         self.model = self.build_model()
 
@@ -65,6 +72,8 @@ class Backend:
             f"Custom{algorithm_name.upper()}"
         )
 
+        self.hyperparams = self.algorithm_class.get_hyperparameters()
+
         return self.algorithm_class
 
 
@@ -74,7 +83,6 @@ class Backend:
         for k, v in new_params.items():
             if k in self.hyperparams:
                 self.hyperparams[k]["default"] = v
-
 
 
 
@@ -141,7 +149,7 @@ class Backend:
         )
 
 
-    def load(self, uploaded_file):          ###### things need to be save to countinue learning
+    def load(self, uploaded_file):
 
         if uploaded_file is None:
             return
@@ -151,24 +159,17 @@ class Backend:
             env=self.env
         )
 
-        # self.model = CustomDQN.load(
-        #     uploaded_file,
-        #     env=self.env
-        # )
 
+    def rebuild_model(self):
 
-    def rebuild_model(self):     
-
-        old_model = self.model
+        old_state = (
+            self.model.export_training_state()
+        )
 
         self.build_model()
 
-        self.model.policy.load_state_dict(
-            old_model.policy.state_dict()
-        )
-
-        self.model.replay_buffer = (
-            old_model.replay_buffer
+        self.model.import_training_state(
+            old_state
         )
     
 

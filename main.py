@@ -7,13 +7,6 @@ from frontend import Frontend
 # init
 frontend = Frontend()
 
-if "backend" not in st.session_state:
-
-    st.session_state.backend = Backend(
-        "base_algorithm"
-    )
-backend = st.session_state.backend
-
 
 frontend.setup_page()
 
@@ -30,68 +23,92 @@ display, chart = (
     reset_button,
     train_steps,
     uploaded_model,
-    algorithm,
-    hyperparam
-) = frontend.create_sidebar(backend.get_available_algorithms(), backend.hyperparams)
+) = frontend.create_sidebar()
+
+
+algorithm = frontend.RL_setup(Backend.get_available_algorithms())
+
+if "backend" not in st.session_state:
+
+    st.session_state.backend = Backend(
+        algorithm
+    )
+backend = st.session_state.backend
 
 
 
 
-if backend.algorithm_class.algorithm_name == "BaseAlgorithm":
-    print('choose algorithm')
+if algorithm is not None:
 
-else:
+    current_algorithm = algorithm
 
-    # events
-    if train_button:
+    if (
+        "algorithm" not in st.session_state
+        or
+        st.session_state.algorithm != current_algorithm
+    ):
 
-        backend.train(
-            chart,
-            train_steps,
+        backend.set_algorithm(algorithm)
+
+        st.session_state.algorithm = (
+            current_algorithm
         )
 
 
-    if run_button:
 
-        backend.run(
-            display
+hyperparams = frontend.hyperparametrs(backend.hyperparams)
+
+
+
+if hyperparams is not None:
+
+    current_hyperparams = hyperparams
+
+    if (
+        "hyperparams" not in st.session_state
+        or
+        st.session_state.hyperparams != current_hyperparams
+    ):
+
+        backend.update_hyperparams(hyperparams)
+
+        st.session_state.hyperparams = (
+            current_hyperparams
         )
 
 
-    if reset_button:
-        backend.rebuild_model()
+# events
+if train_button:
+
+    backend.train(
+        chart,
+        train_steps,
+    )
 
 
-    if uploaded_model is not None:
+if run_button:
 
-        current_file = uploaded_model.name
-
-        if (
-            "loaded_model_name" not in st.session_state
-            or
-            st.session_state.loaded_model_name != current_file
-        ):
-
-            backend.load(uploaded_model)
-
-            st.session_state.loaded_model_name = (
-                current_file
-            )
+    backend.run(
+        display
+    )
 
 
+if reset_button:
+    backend.build_model()
 
-    if algorithm is not None:
 
-        current_algorithm = algorithm
+if uploaded_model is not None:
 
-        if (
-            "algorithm" not in st.session_state
-            or
-            st.session_state.algorithm != current_algorithm
-        ):
+    current_file = uploaded_model.name
 
-            backend.set_algorithm(algorithm)
+    if (
+        "loaded_model_name" not in st.session_state
+        or
+        st.session_state.loaded_model_name != current_file
+    ):
 
-            st.session_state.algorithm = (
-                current_algorithm
-            )
+        backend.load(uploaded_model)
+
+        st.session_state.loaded_model_name = (
+            current_file
+        )

@@ -37,3 +37,39 @@ class CustomPPO(
     def is_compatible(cls, env):
 
         return True
+    
+
+    def export_training_state(self):
+
+         return {
+
+            # network weights
+            "policy_state":
+                self.policy.state_dict(),
+
+            # optimizer state
+            "optimizer_state":
+                self.policy.optimizer.state_dict(),
+
+            # training progress
+            "num_timesteps":
+                self.num_timesteps
+        }
+
+
+    def import_training_state(
+        self,
+        state
+    ):
+
+        self.policy.load_state_dict(
+            state["policy_state"]
+        )
+
+        self.policy.optimizer.load_state_dict(
+            state["optimizer_state"]
+        )
+
+        self.num_timesteps = (
+            state["num_timesteps"]
+        )

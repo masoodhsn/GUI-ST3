@@ -13,9 +13,23 @@ class BaseRLAlgorithm(ABC):
 
         Example:
         {
-            "learning_rate": 0.0003,
-            "gamma": 0.99
+            "learning_rate": {
+                "default": 0.0003,
+                "type": float
+            },
+            "gamma": {
+                "default": 0.99,
+                "type": float
+            }
         }
+
+
+        value
+        max
+        min
+        type
+        sidebar type
+        step
         """
         pass
 
@@ -27,6 +41,22 @@ class BaseRLAlgorithm(ABC):
         """
         Checks if this algorithm is suitable
         for the given environment.
+        """
+        pass
+
+
+    @abstractmethod
+    def export_training_state(self):
+        """
+        Return training state needed for continuing training.
+        """
+        pass
+
+
+    @abstractmethod
+    def import_training_state(self, state):
+        """
+        Restore training state.
         """
         pass
 
